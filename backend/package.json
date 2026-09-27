@@ -8,8 +8,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test test/startup.test.js test/rooms-unit.test.js",
-    "test:integration": "node --test test/rooms-integration.test.js"
+    "test": "node --test test/startup.test.js test/rooms-unit.test.js test/expenses-unit.test.js",
+    "test:integration": "node --test test/rooms-integration.test.js test/expenses-integration.test.js"
   },
   "engines": {
     "node": ">=20"

@@ -51,6 +51,7 @@ function buildServer() {
   const { tableNames } = require('./tables');
   const { requireUser } = require('./auth');
   const rooms = require('./rooms');
+  const expenses = require('./expenses');
   const { handleWorkOSWebhook } = require('./sync');
   const ctx = { doc: createDocClient(), tables: tableNames() };
 
@@ -101,14 +102,42 @@ function buildServer() {
     return reply.code(202).send(outcome);
   });
 
+  // ---- M4b: expenses & settlements ----
+  fastify.post('/api/rooms/:id/expenses', authed(async (req, reply, userId) => {
+    const { expense, duplicate } = await expenses.createExpense(ctx, {
+      actorId: userId, roomId: req.params.id, amountMinor: req.body.amountMinor,
+      payerId: req.body.payerId, participants: req.body.participants,
+      idempotencyKey: req.body.idempotencyKey,
+    });
+    return reply.code(duplicate ? 200 : 201).send({ expense, duplicate });
+  }));
+  fastify.get('/api/rooms/:id/expenses', authed(async (req, reply, userId) => {
+    return { expenses: await expenses.listExpenses(ctx, { requesterId: userId, roomId: req.params.id }) };
+  }));
+  fastify.get('/api/rooms/:id/balances', authed(async (req, reply, userId) => {
+    return expenses.getBalances(ctx, { requesterId: userId, roomId: req.params.id });
+  }));
+  fastify.get('/api/rooms/:id/balances/rebuild', authed(async (req, reply, userId) => {
+    return expenses.rebuildBalances(ctx, { requesterId: userId, roomId: req.params.id });
+  }));
+  fastify.post('/api/rooms/:id/settlements', authed(async (req, reply, userId) => {
+    const { settlement, duplicate } = await expenses.requestSettlement(ctx, {
+      actorId: userId, roomId: req.params.id, fromId: req.body.fromId, toId: req.body.toId,
+      amountMinor: req.body.amountMinor, idempotencyKey: req.body.idempotencyKey,
+    });
+    return reply.code(duplicate ? 200 : 201).send({ settlement, duplicate });
+  }));
+  fastify.post('/api/rooms/:id/settlements/:sid/complete', authed(async (req, reply, userId) => {
+    return expenses.completeSettlement(ctx, { actorId: userId, roomId: req.params.id, settlementId: req.params.sid });
+  }));
+
   // ---- Later slices: explicitly unimplemented so nothing pretends to work ----
   const notImpl = async (req, reply) => {
     log({ level: 'warn', op: req.routeOptions.url, outcome: 'not-implemented' });
-    return reply.code(501).send({ error: 'not-implemented', milestone: 'M4b/M4c' });
+    return reply.code(501).send({ error: 'not-implemented', milestone: 'M4c' });
   };
   for (const [method, url] of [
-    ['POST', '/api/rooms/:id/expenses'],
-    ['POST', '/api/rooms/:id/settlements'],
+    ['GET', '/api/subscriptions'],
   ]) {
     fastify.route({ method, url, handler: notImpl });
   }
