@@ -324,7 +324,24 @@ async function claimFrozenRoom({ doc, tables }, { userId, roomId }) {
   });
 }
 
+async function listRooms({ doc, tables }, { userId }) {
+  // M4a gap-fill for the UI: rooms the user actively belongs to, with their role attached.
+  const q = await doc.send(new QueryCommand({
+    TableName: tables.memberships, IndexName: 'gsi1-user',
+    KeyConditionExpression: 'workosUserId = :u',
+    ExpressionAttributeValues: { ':u': userId },
+  }));
+  const out = [];
+  for (const m of q.Items || []) {
+    if (m.status !== 'ACTIVE') continue;
+    // eslint-disable-next-line no-await-in-loop
+    const room = await doc.send(new GetCommand({ TableName: tables.rooms, Key: { roomId: m.roomId } }));
+    if (room.Item) out.push({ ...room.Item, myRole: m.role });
+  }
+  return out;
+}
+
 module.exports = {
-  requireRole, createRoom, getRoom, listMembers, generateInvite, revokeInvite, joinRoom,
+  requireRole, createRoom, getRoom, listRooms, listMembers, generateInvite, revokeInvite, joinRoom,
   validateTransfer, transferOwnership, removeMember, freezeRoom, claimFrozenRoom, netBalanceForUser,
 };
