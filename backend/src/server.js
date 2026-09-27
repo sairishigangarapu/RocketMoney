@@ -68,6 +68,9 @@ function buildServer() {
     const { room } = await rooms.createRoom(ctx, { ownerId: userId, name: req.body.name, settings: req.body.settings });
     return reply.code(201).send({ room });
   }));
+  fastify.get('/api/rooms', authed(async (req, reply, userId) => {
+    return { rooms: await rooms.listRooms(ctx, { userId }) };
+  }));
   fastify.get('/api/rooms/:id', authed(async (req, reply, userId) => {
     return rooms.getRoom(ctx, { requesterId: userId, roomId: req.params.id });
   }));
