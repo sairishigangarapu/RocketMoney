@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.log
 .env
+# DynamoDB Local artefacts (never commit test databases)
+shared-local-instance.db
+dynamodb-local-metadata.json
+*.db
