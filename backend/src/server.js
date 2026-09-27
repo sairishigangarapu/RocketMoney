@@ -30,20 +30,85 @@ function buildServer() {
   const startedAt = Date.now();
   const log = (obj) => console.log(JSON.stringify({ ts: new Date().toISOString(), ...obj }));
 
-  fastify.get('/health', async () => ({ status: 'ok', uptimeMs: Date.now() - startedAt }));
-  fastify.get('/ready', async () => ({ ready: true })); // deep checks (DynamoDB/WorkOS) land in M3
+  fastify.setErrorHandler((err, req, reply) => {
+    const status = err.statusCode && Number.isInteger(err.statusCode) ? err.statusCode : 500;
+    log({ level: status >= 500 ? 'error' : 'warn', op: req.url, outcome: err.code || 'error', status });
+    reply.code(status).send({ error: err.code || 'internal', message: status >= 500 ? 'internal error' : err.message });
+  });
 
-  // M4 route stubs — explicitly unimplemented so nothing pretends to work.
+  // Webhook signature verification needs the exact raw bytes: keep the raw string for
+  // /api/webhooks/* and JSON-parse everywhere else.
+  fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    if (req.url.startsWith('/api/webhooks/')) return done(null, body);
+    try {
+      done(null, body.length === 0 ? {} : JSON.parse(body));
+    } catch (err) {
+      done(Object.assign(new Error('malformed json'), { statusCode: 400, code: 'bad-json' }));
+    }
+  });
+
+  const { createDocClient } = require('./db');
+  const { tableNames } = require('./tables');
+  const { requireUser } = require('./auth');
+  const rooms = require('./rooms');
+  const { handleWorkOSWebhook } = require('./sync');
+  const ctx = { doc: createDocClient(), tables: tableNames() };
+
+  const authed = (handler) => async (req, reply) => {
+    const user = requireUser(req);
+    return handler(req, reply, user.workosUserId);
+  };
+
+  fastify.get('/health', async () => ({ status: 'ok', uptimeMs: Date.now() - startedAt }));
+  fastify.get('/ready', async () => ({ ready: true })); // deep checks (DynamoDB/WorkOS) land in M4c
+
+  // ---- M4a: rooms ----
+  fastify.post('/api/rooms', authed(async (req, reply, userId) => {
+    const { room } = await rooms.createRoom(ctx, { ownerId: userId, name: req.body.name, settings: req.body.settings });
+    return reply.code(201).send({ room });
+  }));
+  fastify.get('/api/rooms/:id', authed(async (req, reply, userId) => {
+    return rooms.getRoom(ctx, { requesterId: userId, roomId: req.params.id });
+  }));
+  fastify.get('/api/rooms/:id/members', authed(async (req, reply, userId) => {
+    return { members: await rooms.listMembers(ctx, { requesterId: userId, roomId: req.params.id }) };
+  }));
+  fastify.post('/api/rooms/:id/invites', authed(async (req, reply, userId) => {
+    const invite = await rooms.generateInvite(ctx, {
+      actorId: userId, roomId: req.params.id, maxUses: req.body.maxUses, ttlSec: req.body.ttlSec,
+    });
+    return reply.code(201).send({ invite });
+  }));
+  fastify.post('/api/rooms/:id/invites/revoke', authed(async (req, reply, userId) => {
+    return rooms.revokeInvite(ctx, { actorId: userId, roomId: req.params.id, token: req.body.token });
+  }));
+  fastify.post('/api/join', authed(async (req, reply, userId) => {
+    return rooms.joinRoom(ctx, { userId, token: req.body.token });
+  }));
+  fastify.post('/api/rooms/:id/transfer', authed(async (req, reply, userId) => {
+    return rooms.transferOwnership(ctx, { actorId: userId, roomId: req.params.id, successorId: req.body.successorId });
+  }));
+  fastify.post('/api/rooms/:id/members/remove', authed(async (req, reply, userId) => {
+    return rooms.removeMember(ctx, { actorId: userId, roomId: req.params.id, targetId: req.body.targetId });
+  }));
+  fastify.post('/api/rooms/:id/claim', authed(async (req, reply, userId) => {
+    return rooms.claimFrozenRoom(ctx, { userId, roomId: req.params.id });
+  }));
+
+  // ---- M4a: WorkOS webhook (raw body preserved by the parser above) ----
+  fastify.post('/api/webhooks/workos', async (req, reply) => {
+    const outcome = await handleWorkOSWebhook(ctx, { rawBody: req.body, sigHeader: req.headers['workos-signature'] });
+    return reply.code(202).send(outcome);
+  });
+
+  // ---- Later slices: explicitly unimplemented so nothing pretends to work ----
   const notImpl = async (req, reply) => {
     log({ level: 'warn', op: req.routeOptions.url, outcome: 'not-implemented' });
-    return reply.code(501).send({ error: 'not-implemented', milestone: 'M4' });
+    return reply.code(501).send({ error: 'not-implemented', milestone: 'M4b/M4c' });
   };
   for (const [method, url] of [
-    ['POST', '/api/rooms'],
-    ['POST', '/api/rooms/:id/join'],
     ['POST', '/api/rooms/:id/expenses'],
     ['POST', '/api/rooms/:id/settlements'],
-    ['POST', '/api/webhooks/workos'],
   ]) {
     fastify.route({ method, url, handler: notImpl });
   }
