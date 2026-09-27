@@ -12,5 +12,5 @@ multi-table, WorkOS identity. See `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `
 
 ## Status
 
-M0 (init) in progress. No domain implementation until M4. Phase gates: M1 requirements → M2
+M0 (init) complete. M1 requirements baseline in progress (`docs/REQUIREMENTS.md`). No domain implementation until M4. Phase gates: M1 requirements → M2
 architecture (done) → M3 detailed design → M4 MVP → M5 tests → M6 hardening → M7 release.
