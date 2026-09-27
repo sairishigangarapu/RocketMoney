@@ -1,0 +1,17 @@
+{
+  "name": "rocketmoney-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "RocketMoney Fastify API (OLTP-first). M0 skeleton.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "fastify": "^5.0.0"
+  }
+}
