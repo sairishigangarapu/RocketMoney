@@ -3,7 +3,8 @@
 Evolves the Lab 3 layered architecture (Presentation → Application/Business → Integration →
 Data Access → Persistence). Deployable unit: **layered modular monolith** (Fastify JS backend +
 React TSX frontend). Event-driven behaviour is internal (Transactional Outbox + workers), not a
-separate microservices estate. Full history: Lab 3 PDF `PES1UG24CS400_Lab3.pdf` in repo root.
+separate microservices estate. Lab 3 source artefact (`PES1UG24CS400_Lab3.pdf`) lives in the
+sibling `SoftwareEngg` repo (`sairishigangarapu/SoftwareEngg`); this repo carries the evolution.
 
 ## 1. Container view
 
