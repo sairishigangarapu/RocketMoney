@@ -8,8 +8,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test test/startup.test.js test/rooms-unit.test.js test/expenses-unit.test.js",
-    "test:integration": "node --test test/rooms-integration.test.js test/expenses-integration.test.js"
+    "test": "node --test test/startup.test.js test/rooms-unit.test.js test/expenses-unit.test.js test/subs-unit.test.js",
+    "test:integration": "node --test test/rooms-integration.test.js test/expenses-integration.test.js test/subs-integration.test.js"
   },
   "engines": {
     "node": ">=20"
@@ -18,6 +18,7 @@
     "@aws-sdk/client-dynamodb": "^3.1141.0",
     "@aws-sdk/lib-dynamodb": "^3.1141.0",
     "@workos-inc/node": "^10.14.0",
-    "fastify": "^5.0.0"
+    "fastify": "^5.0.0",
+    "pdfkit": "^0.20.2"
   }
 }

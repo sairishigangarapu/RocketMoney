@@ -98,6 +98,57 @@ export const api = {
   claim: (id: string) => request<{ owner: string }>('POST', `/api/rooms/${id}/claim`),
 };
 
+export interface Subscription {
+  subscriptionId: string;
+  ownerId: string;
+  roomId?: string;
+  provider: string;
+  amountMinor: number;
+  renewalDate: string;
+  status: string;
+}
+export interface Guide {
+  provider: string;
+  supported: boolean;
+  steps: string[];
+  portal: string | null;
+}
+export interface Dashboard {
+  personalMinor: number;
+  personalCount: number;
+  rooms: { roomId: string; name: string; role: string; status: string; outstandingMinor: number }[];
+  totalOutstandingMinor: number;
+}
+
+async function download(path: string, filename: string): Promise<void> {
+  const res = await fetch(`${BASE}${path}`, { headers: { 'x-test-user': getUserId() } });
+  if (!res.ok) throw new ApiError(res.status, 'download-failed', `HTTP ${res.status}`);
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+export const subsApi = {
+  list: () => request<{ subscriptions: Subscription[] }>('GET', '/api/subscriptions'),
+  create: (s: { provider: string; amountMinor: number; renewalDate: string }) =>
+    request<{ subscription: Subscription }>('POST', '/api/subscriptions', s),
+  link: (id: string, roomId: string) =>
+    request<unknown>('POST', `/api/subscriptions/${id}/link`, { roomId }),
+  cancel: (id: string) => request<unknown>('POST', `/api/subscriptions/${id}/cancel`),
+  guide: (provider: string) => request<Guide>('GET', `/api/guides/${encodeURIComponent(provider)}`),
+  concierge: (id: string, authorization: string) =>
+    request<unknown>('POST', `/api/subscriptions/${id}/concierge`, { authorization }),
+  importCSV: (source: string, batchId: string, csv: string) =>
+    request<{ imported: number; skipped: number; total: number }>('POST', '/api/transactions/import', { source, batchId, csv }),
+  analyze: () => request<{ subscriptions: { merchant: string; monthlyMinor: number; renewalDate: string }[]; rttMs: number; fallbackUsed: boolean; analyzed: number }>('GET', '/api/analysis'),
+  dashboard: () => request<Dashboard>('GET', '/api/dashboard'),
+  reportCSV: () => download('/api/reports/burn-rate?format=csv', 'burn-rate.csv'),
+  reportPDF: () => download('/api/reports/burn-rate?format=pdf', 'burn-rate.pdf'),
+};
+
 /** Minor units <-> display rupees. All money math stays integer in the backend. */
 export function toMinor(rupees: string): number {
   const v = Number.parseFloat(rupees);

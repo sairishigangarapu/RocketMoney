@@ -52,6 +52,12 @@ function buildServer() {
   const { requireUser } = require('./auth');
   const rooms = require('./rooms');
   const expenses = require('./expenses');
+  const subscriptions = require('./subscriptions');
+  const transactions = require('./transactions');
+  const analysis = require('./analysis');
+  const notify = require('./notify');
+  const reports = require('./reports');
+  const metrics = require('./metrics');
   const { handleWorkOSWebhook } = require('./sync');
   const ctx = { doc: createDocClient(), tables: tableNames() };
 
@@ -134,16 +140,54 @@ function buildServer() {
     return expenses.completeSettlement(ctx, { actorId: userId, roomId: req.params.id, settlementId: req.params.sid });
   }));
 
-  // ---- Later slices: explicitly unimplemented so nothing pretends to work ----
-  const notImpl = async (req, reply) => {
-    log({ level: 'warn', op: req.routeOptions.url, outcome: 'not-implemented' });
-    return reply.code(501).send({ error: 'not-implemented', milestone: 'M4c' });
-  };
-  for (const [method, url] of [
-    ['GET', '/api/subscriptions'],
-  ]) {
-    fastify.route({ method, url, handler: notImpl });
-  }
+  // ---- M4c: subscriptions, analysis, notifications, cancellation, reports ----
+  fastify.post('/api/subscriptions', authed(async (req, reply, userId) => {
+    const { subscription } = await subscriptions.createSubscription(ctx, {
+      ownerId: userId, provider: req.body.provider, amountMinor: req.body.amountMinor,
+      currency: req.body.currency, renewalDate: req.body.renewalDate,
+    });
+    return reply.code(201).send({ subscription });
+  }));
+  fastify.get('/api/subscriptions', authed(async (req, reply, userId) => {
+    return { subscriptions: await subscriptions.listMySubscriptions(ctx, { userId }) };
+  }));
+  fastify.get('/api/subscriptions/:id', authed(async (req, reply, userId) => {
+    return subscriptions.getSubscription(ctx, { requesterId: userId, subscriptionId: req.params.id });
+  }));
+  fastify.post('/api/subscriptions/:id/link', authed(async (req, reply, userId) => {
+    return subscriptions.linkToRoom(ctx, { actorId: userId, subscriptionId: req.params.id, roomId: req.body.roomId });
+  }));
+  fastify.post('/api/subscriptions/:id/cancel', authed(async (req, reply, userId) => {
+    return subscriptions.confirmCancelled(ctx, { requesterId: userId, subscriptionId: req.params.id });
+  }));
+  fastify.post('/api/transactions/import', authed(async (req, reply, userId) => {
+    return transactions.importTransactions(ctx, {
+      userId, source: req.body.source, batchId: req.body.batchId, csvText: req.body.csv,
+    });
+  }));
+  fastify.get('/api/analysis', authed(async (req, reply, userId) => {
+    return analysis.analyzeUser(ctx, { userId });
+  }));
+  fastify.post('/api/admin/scan-renewals', authed(async (req, reply, userId) => {
+    return notify.scanRenewals(ctx, { ownerId: userId });
+  }));
+  fastify.get('/api/guides/:provider', async (req) => {
+    return notify.cancellationGuide(req.params.provider);
+  });
+  fastify.post('/api/subscriptions/:id/concierge', authed(async (req, reply, userId) => {
+    return notify.requestConcierge(ctx, {
+      requesterId: userId, subscriptionId: req.params.id, authorization: req.body.authorization,
+    });
+  }));
+  fastify.get('/api/reports/burn-rate', authed(async (req, reply) => {
+    const format = req.query.format === 'pdf' ? 'pdf' : 'csv';
+    const report = await reports.buildReport(ctx, { format });
+    return reply.header('Content-Type', report.contentType).send(report.body);
+  }));
+  fastify.get('/api/dashboard', authed(async (req, reply, userId) => {
+    return metrics.dashboard(ctx, { userId });
+  }));
+
   return { fastify, log };
 }
 
