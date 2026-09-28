@@ -8,8 +8,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test test/startup.test.js test/rooms-unit.test.js test/expenses-unit.test.js test/subs-unit.test.js",
-    "test:integration": "node --test test/rooms-integration.test.js test/expenses-integration.test.js test/subs-integration.test.js"
+    "test": "node --test test/startup.test.js test/rooms-unit.test.js test/expenses-unit.test.js test/subs-unit.test.js test/auth-unit.test.js",
+    "test:integration": "node --test --test-concurrency=1 test/rooms-integration.test.js test/expenses-integration.test.js test/subs-integration.test.js test/worker-integration.test.js"
   },
   "engines": {
     "node": ">=20"
@@ -19,6 +19,8 @@
     "@aws-sdk/lib-dynamodb": "^3.1141.0",
     "@workos-inc/node": "^10.14.0",
     "fastify": "^5.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.1.0",
     "pdfkit": "^0.20.2"
   }
 }

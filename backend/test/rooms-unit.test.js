@@ -48,16 +48,16 @@ test('frozen rooms surface as 409 room-frozen', () => {
   assert.equal(err.code, 'room-frozen');
 });
 
-test('requireUser fails closed without the test seam', () => {
+test('requireUser fails closed without the test seam', async () => {
   delete process.env.ALLOW_TEST_AUTH;
-  assert.throws(() => requireUser({ headers: { 'x-test-user': 'u1' } }), (e) => e.statusCode === 501);
+  await assert.rejects(requireUser({ headers: { 'x-test-user': 'u1' } }), (e) => e.statusCode === 501);
 });
 
-test('requireUser honors the test seam only with a user header', () => {
+test('requireUser honors the test seam only with a user header', async () => {
   process.env.ALLOW_TEST_AUTH = 'true';
   try {
-    assert.equal(requireUser({ headers: { 'x-test-user': 'u1' } }).workosUserId, 'u1');
-    assert.throws(() => requireUser({ headers: {} }), (e) => e.statusCode === 401);
+    assert.equal((await requireUser({ headers: { 'x-test-user': 'u1' } })).workosUserId, 'u1');
+    await assert.rejects(requireUser({ headers: {} }), (e) => e.statusCode === 401);
   } finally {
     delete process.env.ALLOW_TEST_AUTH;
   }
