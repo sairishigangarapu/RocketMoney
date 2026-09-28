@@ -12,5 +12,5 @@ multi-table, WorkOS identity. See `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `
 
 ## Status
 
-M0–M3 baselined and merged. M4a (rooms/invites/sync, issue #6) in progress. No domain implementation until M4. Phase gates: M1 requirements → M2
+M0–M4a baselined and merged. M4b (#7) and frontend (#14) merged. M4c (#8) in review. No domain implementation until M4. Phase gates: M1 requirements → M2
 architecture (done) → M3 detailed design → M4 MVP → M5 tests → M6 hardening → M7 release.

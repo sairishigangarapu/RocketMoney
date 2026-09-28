@@ -168,6 +168,47 @@ test('reports: CSV has aggregates without identity; PDF is a real PDF', async ()
   assert.ok(Buffer.isBuffer(pdf.body) && pdf.body.slice(0, 4).toString() === '%PDF');
 });
 
+test('notifier: webhook delivery with signature; failure falls back to log', async () => {
+  const http = require('node:http');
+  const { signPayload } = require('../src/notify');
+  const received = [];
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      received.push({ headers: req.headers, body: JSON.parse(body) });
+      res.writeHead(200);
+      res.end('ok');
+    });
+  });
+  await new Promise((r) => server.listen(0, r));
+  const port = server.address().port;
+  process.env.NOTIFY_WEBHOOK_URL = `http://localhost:${port}/hook`;
+  process.env.NOTIFY_WEBHOOK_SECRET = 's3cret';
+  try {
+    const out = await notify.sendNotification({ channel: 'webhook', toUserId: 'u1', subject: 'Renewal', body: 'Due' });
+    assert.equal(out.delivered, 'webhook');
+    assert.equal(received.length, 1);
+    assert.equal(received[0].body.subject, 'Renewal');
+    assert.equal(
+      received[0].headers['x-rocketmoney-signature'],
+      signPayload(JSON.stringify(received[0].body), 's3cret'),
+    );
+  } finally {
+    server.close();
+    delete process.env.NOTIFY_WEBHOOK_URL;
+    delete process.env.NOTIFY_WEBHOOK_SECRET;
+  }
+  // Unreachable webhook never throws: falls back to log transport.
+  process.env.NOTIFY_WEBHOOK_URL = 'http://localhost:1/closed';
+  try {
+    const out = await notify.sendNotification({ channel: 'webhook', toUserId: 'u1', subject: 'Hi', body: 'B' });
+    assert.equal(out.delivered, 'log');
+  } finally {
+    delete process.env.NOTIFY_WEBHOOK_URL;
+  }
+});
+
 test('dashboard figures equal owned actives plus room outstanding', async () => {
   const owner = uid('o');
   await subscriptions.createSubscription(ctx, {

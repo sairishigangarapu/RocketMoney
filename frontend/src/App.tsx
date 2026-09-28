@@ -2,21 +2,10 @@ import React from 'react';
 import { getUserId, setUserId } from './api';
 import { RoomsList } from './Rooms';
 import { RoomDetail } from './RoomDetail';
+import { Subscriptions } from './Subs';
+import { Reports } from './Reports';
 
 type View = 'rooms' | 'room' | 'subscriptions' | 'reports';
-
-function PendingBackend({ what, issue }: { what: string; issue: string }): React.JSX.Element {
-  return (
-    <section className="rm-card" aria-labelledby="pending-h">
-      <h2 id="pending-h">{what} — not built yet</h2>
-      <p>
-        This view needs its backend slice (<strong>{issue}</strong>), so it shows this honest
-        placeholder instead of fake data. Rooms, expenses, and settlements on the Rooms tab are
-        fully live.
-      </p>
-    </section>
-  );
-}
 
 export default function App(): React.JSX.Element {
   const [view, setView] = React.useState<View>('rooms');
@@ -59,12 +48,8 @@ export default function App(): React.JSX.Element {
         )}
         {view === 'rooms' && <RoomsList onOpen={openRoom} />}
         {view === 'room' && roomId && <RoomDetail roomId={roomId} onBack={() => go('rooms')} />}
-        {view === 'subscriptions' && (
-          <PendingBackend what="Personal & shared subscriptions" issue="issue #8 (M4c)" />
-        )}
-        {view === 'reports' && (
-          <PendingBackend what="Burn-rate & audit reports" issue="issue #8 (M4c)" />
-        )}
+        {view === 'subscriptions' && <Subscriptions />}
+        {view === 'reports' && <Reports />}
       </main>
       <footer>
         <p className="rm-note">RocketMoney · brutalist build · money in ₹ · API: {(import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000'}</p>

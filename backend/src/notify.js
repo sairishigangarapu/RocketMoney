@@ -1,26 +1,63 @@
 'use strict';
 /* Notifications (FR-003) + cancellation guidance/concierge (FR-004/006).
- * M4 notifier = structured log lines (the outbox event is the durable part; provider
- * fan-out lands with M4 hardening). Cancellation guides are a static provider map with an
- * explicit unsupported state — never a dead link.
+ * Transport: webhook-first. When NOTIFY_WEBHOOK_URL is set, the notification is POSTed
+ * as JSON (5s timeout; HMAC-SHA256 signature in X-RocketMoney-Signature when
+ * NOTIFY_WEBHOOK_SECRET is set). Any failure — or no URL configured — falls back to a
+ * structured log line, never throwing: durability lives in the outbox event, and the
+ * worker retry path redrives delivery. The fallback philosophy mirrors ADR-006.
+ * Cancellation guides are a static provider map with an explicit unsupported state —
+ * never a dead link.
  */
+const crypto = require('node:crypto');
 const { TransactWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { badRequest, forbidden, notFound } = require('./errors');
 const { nowIso } = require('./ids');
 const { newEvent, putEventItem } = require('./outbox');
 const { getSubscription, renewalsDue } = require('./subscriptions');
 
-function sendNotification({ channel, toUserId, subject, body }) {
-  // Provider seam: durable outbox event carries the intent; this log line is the M4 transport.
-  console.log(JSON.stringify({
-    ts: new Date().toISOString(), level: 'info', component: 'notifier',
-    channel, toUserId, subject, body,
-  }));
+const WEBHOOK_TIMEOUT_MS = 5000;
+
+function signPayload(rawBody, secret) {
+  return crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+}
+
+function logLine(entry) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'info', component: 'notifier', ...entry }));
+}
+
+async function postWebhook(url, payload, secret) {
+  const rawBody = JSON.stringify(payload);
+  const headers = { 'Content-Type': 'application/json' };
+  if (secret) headers['X-RocketMoney-Signature'] = signPayload(rawBody, secret);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), WEBHOOK_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { method: 'POST', headers, body: rawBody, signal: ctrl.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function sendNotification({ channel, toUserId, subject, body }) {
+  const payload = { toUserId, subject, body, sentAt: new Date().toISOString() };
+  const url = process.env.NOTIFY_WEBHOOK_URL;
+  if (url) {
+    const ok = await postWebhook(url, payload, process.env.NOTIFY_WEBHOOK_SECRET);
+    if (ok) {
+      logLine({ outcome: 'webhook-delivered', channel, toUserId, subject });
+      return { delivered: 'webhook', channel, toUserId };
+    }
+    logLine({ outcome: 'webhook-failed-fallback-log', channel, toUserId, subject });
+  }
+  logLine({ outcome: 'log', channel, toUserId, subject, body });
   return { delivered: 'log', channel, toUserId };
 }
 
 /* Owner-triggered scan: every owned subscription due within 72h emits an outbox event.
- * (Scheduler wiring lands with CI/ops; the scan itself is pure domain + outbox.) */
+ * (Daily scheduler wiring is ops work; the scan itself is pure domain + outbox.) */
 async function scanRenewals({ doc, tables }, { ownerId, withinMs }) {
   const due = await renewalsDue({ doc, tables }, { ownerId, withinMs });
   const emitted = [];
@@ -31,8 +68,9 @@ async function scanRenewals({ doc, tables }, { ownerId, withinMs }) {
         ownerId, provider: s.provider, renewalDate: s.renewalDate, amountMinor: s.amountMinor,
       }))],
     }));
-    sendNotification({
-      channel: 'log', toUserId: ownerId,
+    // eslint-disable-next-line no-await-in-loop
+    await sendNotification({
+      channel: 'webhook', toUserId: ownerId,
       subject: `${s.provider} renews ${s.renewalDate}`,
       body: `${s.provider} charges ${(s.amountMinor / 100).toFixed(2)} on ${s.renewalDate}. Cancel within 72h if unwanted.`,
     });
@@ -97,4 +135,4 @@ async function requestConcierge({ doc, tables }, { requesterId, subscriptionId, 
   return { subscriptionId, status: 'PENDING_CONCIERGE', providerSupported: guide.concierge };
 }
 
-module.exports = { sendNotification, scanRenewals, cancellationGuide, requestConcierge, PROVIDER_GUIDES };
+module.exports = { sendNotification, scanRenewals, cancellationGuide, requestConcierge, PROVIDER_GUIDES, signPayload };
