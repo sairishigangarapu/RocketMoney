@@ -62,7 +62,7 @@ function buildServer() {
   const ctx = { doc: createDocClient(), tables: tableNames() };
 
   const authed = (handler) => async (req, reply) => {
-    const user = requireUser(req);
+    const user = await requireUser(req);
     return handler(req, reply, user.workosUserId);
   };
 
@@ -199,9 +199,11 @@ async function main() {
   // Graceful shutdown: stop intake → drain → close (bounded timeout).
   const SHUTDOWN_TIMEOUT_MS = 10_000;
   let shuttingDown = false;
+  const timers = [];
   const shutdown = (signal) => async () => {
     if (shuttingDown) return;
     shuttingDown = true;
+    for (const t of timers) clearInterval(t); // stop background intake first
     log({ level: 'info', component: 'shutdown', signal, outcome: 'draining' });
     const force = setTimeout(() => {
       log({ level: 'error', component: 'shutdown', outcome: 'timeout-exceeded' });
@@ -223,6 +225,25 @@ async function main() {
   try {
     await fastify.listen({ port, host: '0.0.0.0' });
     log({ level: 'info', component: 'startup', outcome: 'listening', port });
+    // Opt-in background loops (both OFF unless configured — M6 ops surface).
+    const { pollOnce, scanAllRenewals } = require('./worker');
+    const { tableNames } = require('./tables');
+    const { createDocClient } = require('./db');
+    const bg = { doc: createDocClient(), tables: tableNames() };
+    if (process.env.OUTBOX_POLL_MS) {
+      const ms = Number(process.env.OUTBOX_POLL_MS);
+      timers.push(setInterval(() => {
+        pollOnce(bg, `worker-${process.pid}`).catch((e) => log({ level: 'error', component: 'worker', outcome: 'poll-error', error: e.message }));
+      }, ms));
+      log({ level: 'info', component: 'startup', outcome: 'outbox-worker-on', everyMs: ms });
+    }
+    if (process.env.SCAN_INTERVAL_MS) {
+      const ms = Number(process.env.SCAN_INTERVAL_MS);
+      timers.push(setInterval(() => {
+        scanAllRenewals(bg).catch((e) => log({ level: 'error', component: 'scanner', outcome: 'scan-error', error: e.message }));
+      }, ms));
+      log({ level: 'info', component: 'startup', outcome: 'renewal-scanner-on', everyMs: ms });
+    }
   } catch (err) {
     log({ level: 'fatal', component: 'startup', reason: 'listen-failed', error: err.message });
     process.exit(1);

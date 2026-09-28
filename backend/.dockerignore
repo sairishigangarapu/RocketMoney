@@ -1,0 +1,5 @@
+node_modules/
+*.db
+dynamodb-local-metadata.json
+.env
+npm-debug.log

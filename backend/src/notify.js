@@ -57,7 +57,8 @@ async function sendNotification({ channel, toUserId, subject, body }) {
 }
 
 /* Owner-triggered scan: every owned subscription due within 72h emits an outbox event.
- * (Daily scheduler wiring is ops work; the scan itself is pure domain + outbox.) */
+ * Delivery belongs to the worker (worker.js dispatch), never to the scan: emitting here
+ * AND sending here would double-deliver. (Daily scheduler wiring is ops work.) */
 async function scanRenewals({ doc, tables }, { ownerId, withinMs }) {
   const due = await renewalsDue({ doc, tables }, { ownerId, withinMs });
   const emitted = [];
@@ -68,12 +69,6 @@ async function scanRenewals({ doc, tables }, { ownerId, withinMs }) {
         ownerId, provider: s.provider, renewalDate: s.renewalDate, amountMinor: s.amountMinor,
       }))],
     }));
-    // eslint-disable-next-line no-await-in-loop
-    await sendNotification({
-      channel: 'webhook', toUserId: ownerId,
-      subject: `${s.provider} renews ${s.renewalDate}`,
-      body: `${s.provider} charges ${(s.amountMinor / 100).toFixed(2)} on ${s.renewalDate}. Cancel within 72h if unwanted.`,
-    });
     emitted.push(s.subscriptionId);
   }
   return { scanned: due.length, emitted };
