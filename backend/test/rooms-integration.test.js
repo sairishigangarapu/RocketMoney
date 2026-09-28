@@ -56,6 +56,19 @@ test('create room: owner membership, get, list', async () => {
   assert.equal(members.length, 1);
 });
 
+test('listRooms returns owned and joined rooms with roles; strangers see none', async () => {
+  const owner = uid('o');
+  const r1 = await makeRoom(owner, 'Owned');
+  const r2 = await makeRoom(uid('other'), 'Joined');
+  const inv = await rooms.generateInvite(ctx, { actorId: r2.ownerId, roomId: r2.roomId, maxUses: 2 });
+  await rooms.joinRoom(ctx, { userId: owner, token: inv.token });
+  const mine = await rooms.listRooms(ctx, { userId: owner });
+  const byId = Object.fromEntries(mine.map((r) => [r.roomId, r.myRole]));
+  assert.equal(byId[r1.roomId], 'OWNER');
+  assert.equal(byId[r2.roomId], 'MEMBER');
+  assert.deepEqual(await rooms.listRooms(ctx, { userId: uid('ghost') }), []);
+});
+
 test('authZ: non-member sees 404, member cannot invite (403)', async () => {
   const owner = uid('o');
   const stranger = uid('s');
