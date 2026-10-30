@@ -1,0 +1,128 @@
+
+> rocketmoney-backend@0.1.0 test
+> node --test test/startup.test.js test/rooms-unit.test.js test/expenses-unit.test.js test/subs-unit.test.js
+
+TAP version 13
+# Subtest: equal split: 100000 minor / 5 members = 20000 each, sums exactly
+ok 1 - equal split: 100000 minor / 5 members = 20000 each, sums exactly
+  ---
+  duration_ms: 1.108472
+  type: 'test'
+  ...
+# Subtest: equal split: remainder paise go to the payer, deterministically
+ok 2 - equal split: remainder paise go to the payer, deterministically
+  ---
+  duration_ms: 0.214476
+  type: 'test'
+  ...
+# Subtest: equal split rejects bad input
+ok 3 - equal split rejects bad input
+  ---
+  duration_ms: 0.639719
+  type: 'test'
+  ...
+# Subtest: pairKey is canonical; self-pairs rejected
+ok 4 - pairKey is canonical; self-pairs rejected
+  ---
+  duration_ms: 0.283745
+  type: 'test'
+  ...
+# Subtest: obligationDelta orients signs so B(first,second) = first owes second
+ok 5 - obligationDelta orients signs so B(first,second) = first owes second
+  ---
+  duration_ms: 0.879577
+  type: 'test'
+  ...
+# Subtest: invite tokens are 256-bit opaque and unique
+ok 6 - invite tokens are 256-bit opaque and unique
+  ---
+  duration_ms: 8.086011
+  type: 'test'
+  ...
+# Subtest: entity ids carry their prefix; lock owners are uuids
+ok 7 - entity ids carry their prefix; lock owners are uuids
+  ---
+  duration_ms: 0.555976
+  type: 'test'
+  ...
+# Subtest: validateTransfer decision matrix
+ok 8 - validateTransfer decision matrix
+  ---
+  duration_ms: 0.388638
+  type: 'test'
+  ...
+# Subtest: frozen rooms surface as 409 room-frozen
+ok 9 - frozen rooms surface as 409 room-frozen
+  ---
+  duration_ms: 0.177067
+  type: 'test'
+  ...
+# Subtest: requireUser fails closed without the test seam
+ok 10 - requireUser fails closed without the test seam
+  ---
+  duration_ms: 0.567327
+  type: 'test'
+  ...
+# Subtest: requireUser honors the test seam only with a user header
+ok 11 - requireUser honors the test seam only with a user header
+  ---
+  duration_ms: 0.233328
+  type: 'test'
+  ...
+# Subtest: outbox events start PENDING with identity
+ok 12 - outbox events start PENDING with identity
+  ---
+  duration_ms: 0.547393
+  type: 'test'
+  ...
+# Subtest: fail-fast: missing env exits 1 naming (not leaking) the missing keys
+ok 13 - fail-fast: missing env exits 1 naming (not leaking) the missing keys
+  ---
+  duration_ms: 58.96901
+  type: 'test'
+  ...
+# Subtest: boot: /health 200, stubs 501, SIGTERM drains with exit 0
+ok 14 - boot: /health 200, stubs 501, SIGTERM drains with exit 0
+  ---
+  duration_ms: 761.827553
+  type: 'test'
+  ...
+# Subtest: detector flags monthly same-amount charges, ignores one-offs
+ok 15 - detector flags monthly same-amount charges, ignores one-offs
+  ---
+  duration_ms: 1.807657
+  type: 'test'
+  ...
+# Subtest: detector requires consecutive monthly cadence
+ok 16 - detector requires consecutive monthly cadence
+  ---
+  duration_ms: 0.265361
+  type: 'test'
+  ...
+# Subtest: CSV parsing validates shape and normalizes
+ok 17 - CSV parsing validates shape and normalizes
+  ---
+  duration_ms: 0.919388
+  type: 'test'
+  ...
+# Subtest: guides: known provider valid, unknown explicit unsupported
+ok 18 - guides: known provider valid, unknown explicit unsupported
+  ---
+  duration_ms: 0.983637
+  type: 'test'
+  ...
+# Subtest: aggregate CSV contains totals and no personal data
+ok 19 - aggregate CSV contains totals and no personal data
+  ---
+  duration_ms: 0.441395
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 919.188976

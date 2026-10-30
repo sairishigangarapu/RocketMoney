@@ -6,3 +6,5 @@ dist/
 shared-local-instance.db
 dynamodb-local-metadata.json
 *.db
+
+/backend/venv/

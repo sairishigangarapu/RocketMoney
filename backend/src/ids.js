@@ -1,14 +1,14 @@
-'use strict';
+"use strict";
 /* Opaque ID + token generation. Invitation tokens are 256-bit CSPRNG, base64url (SEC-004).
  * Entity IDs are prefixed random hex (rm_/ex_/st_/ev_/in_); sortability is not required in MVP.
  */
-const crypto = require('node:crypto');
+const crypto = require("node:crypto");
 
 function entityId(prefix) {
-  return `${prefix}${crypto.randomBytes(13).toString('hex')}`;
+  return `${prefix}${crypto.randomBytes(13).toString("hex")}`;
 }
 function inviteToken() {
-  return crypto.randomBytes(32).toString('base64url');
+  return crypto.randomBytes(32).toString("base64url");
 }
 function lockOwner() {
   return crypto.randomUUID();
