@@ -20,5 +20,10 @@
     "@workos-inc/node": "^10.14.0",
     "fastify": "^5.0.0",
     "pdfkit": "^0.20.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10"
   }
 }

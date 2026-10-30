@@ -1,0 +1,20 @@
+Checking formatting...
+[warn] src/analysis.js
+[warn] src/auth.js
+[warn] src/db.js
+[warn] src/errors.js
+[warn] src/expenses.js
+[warn] src/ids.js
+[warn] src/locks.js
+[warn] src/metrics.js
+[warn] src/notify.js
+[warn] src/outbox.js
+[warn] src/reports.js
+[warn] src/rooms.js
+[warn] src/schema.js
+[warn] src/server.js
+[warn] src/subscriptions.js
+[warn] src/sync.js
+[warn] src/tables.js
+[warn] src/transactions.js
+[warn] Code style issues found in 18 files. Run Prettier with --write to fix.
